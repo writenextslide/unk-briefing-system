@@ -119,6 +119,17 @@ function setupBasecampOAuth() {
   Logger.log(authUrl);
 }
 
+// ------------------------------------------------------------
+// getBasecampActivity — v8 (concurrent)
+//
+// Fetches the same data as before, but instead of one slow
+// request at a time (with a sleep before every call), it groups
+// requests into stages and runs each stage concurrently with
+// UrlFetchApp.fetchAll. A hard time budget guarantees the function
+// always returns in time for the report to be written and sent —
+// if the budget is ever hit, it stops gathering and returns
+// whatever it has so far rather than letting the script time out.
+// ------------------------------------------------------------
 function getBasecampActivity() {
   const token = PropertiesService.getScriptProperties().getProperty('BASECAMP_ACCESS_TOKEN');
   if (!token) throw new Error('AUTH_EXPIRED: BASECAMP_ACCESS_TOKEN not set.');
@@ -131,7 +142,14 @@ function getBasecampActivity() {
   const since = new Date();
   since.setDate(since.getDate() - CONFIG.DAYS_BACK);
 
-  // --- Paginate through ALL projects, keep only active ones updated recently ---
+  // Hard stop for data gathering. Apps Script kills the whole script
+  // at 6 minutes; we cap gathering well below that so there is always
+  // time left to call Claude, send the email and write the docs.
+  const GATHER_BUDGET_MS = 150 * 1000; // 2.5 minutes
+  const startTime = Date.now();
+  const timeLeft  = () => GATHER_BUDGET_MS - (Date.now() - startTime);
+
+  // --- Stage A: paginate through ALL projects (inherently sequential) ---
   let projectsUrl = 'https://3.basecampapi.com/' + CONFIG.ACCOUNT_ID + '/projects.json';
   const activeProjects = [];
 
@@ -143,110 +161,181 @@ function getBasecampActivity() {
 
     const batch = JSON.parse(projResp.getContentText());
     batch.forEach(p => {
+      if (isExcludedProject(p)) {
+        Logger.log('Skipping private project: ' + p.name);
+        return;
+      }
       if (p.status === 'active' && new Date(p.updated_at) >= since) {
         activeProjects.push(p);
       }
     });
 
     projectsUrl = getNextPageUrl(projResp);
-    Utilities.sleep(300);
+    if (projectsUrl) Utilities.sleep(200);
   }
 
   Logger.log('Projects updated in window: ' + activeProjects.length);
 
   const allEvents = [];
 
-  for (const project of activeProjects) {
-    if (!project.dock) continue;
-
-    // --- Messages ---
+  // --- Stage B: message board + todoset for every project (concurrent) ---
+  const stageB = [];
+  activeProjects.forEach(project => {
+    if (!project.dock) return;
     const msgTool = project.dock.find(t => t.name === 'message_board');
     if (msgTool) {
-      try {
-        Utilities.sleep(400);
-        const msgResp = UrlFetchApp.fetch(
-          msgTool.url.replace('.json', '/messages.json') + '?per_page=10',
-          { headers, muteHttpExceptions: true }
-        );
-        if (msgResp.getResponseCode() === 200) {
-          const messages = JSON.parse(msgResp.getContentText());
-          for (const m of messages) {
-            if (new Date(m.updated_at) < since) break;
-            allEvents.push({
-              project:    project.name,
-              created_at: m.updated_at,
-              creator:    m.creator && m.creator.name ? m.creator.name : 'Unknown',
-              action:     'posted message',
-              title:      m.subject || '',
-              type:       'Message',
-            });
-          }
-        }
-      } catch(e) { Logger.log('Message error on ' + project.name + ': ' + e); }
+      stageB.push({ kind: 'messages', project: project, url: msgTool.url.replace('.json', '/messages.json') + '?per_page=10' });
     }
-
-    // --- Todos (completed and active, updated recently) ---
     const todoTool = project.dock.find(t => t.name === 'todoset');
     if (todoTool) {
-      try {
-        Utilities.sleep(400);
-        const tsResp = UrlFetchApp.fetch(todoTool.url, { headers, muteHttpExceptions: true });
-        if (tsResp.getResponseCode() === 200) {
-          const todoset = JSON.parse(tsResp.getContentText());
-          const todolistsUrl = todoset.todolists_url;
-          if (todolistsUrl) {
-            Utilities.sleep(400);
-            const tlResp = UrlFetchApp.fetch(todolistsUrl + '?per_page=10', { headers, muteHttpExceptions: true });
-            if (tlResp.getResponseCode() === 200) {
-              const todolists = JSON.parse(tlResp.getContentText());
-              for (const tl of todolists) {
-                // Fetch active todos
-                const activeTodosUrl = tl.url.replace('.json', '/todos.json') + '?per_page=20';
-                Utilities.sleep(300);
-                const activeTodosResp = UrlFetchApp.fetch(activeTodosUrl, { headers, muteHttpExceptions: true });
-                if (activeTodosResp.getResponseCode() === 200) {
-                  const todos = JSON.parse(activeTodosResp.getContentText());
-                  for (const t of todos) {
-                    if (new Date(t.updated_at) < since) continue;
-                    allEvents.push({
-                      project:    project.name,
-                      created_at: t.updated_at,
-                      creator:    t.creator && t.creator.name ? t.creator.name : 'Unknown',
-                      action:     'updated todo',
-                      title:      t.content || '',
-                      type:       'Todo',
-                    });
-                  }
-                }
-                // Fetch completed todos
-                const completedTodosUrl = tl.url.replace('.json', '/todos.json') + '?completion_status=completed&per_page=20';
-                Utilities.sleep(300);
-                const completedTodosResp = UrlFetchApp.fetch(completedTodosUrl, { headers, muteHttpExceptions: true });
-                if (completedTodosResp.getResponseCode() === 200) {
-                  const completed = JSON.parse(completedTodosResp.getContentText());
-                  for (const t of completed) {
-                    if (new Date(t.updated_at) < since) continue;
-                    allEvents.push({
-                      project:    project.name,
-                      created_at: t.updated_at,
-                      creator:    t.creator && t.creator.name ? t.creator.name : 'Unknown',
-                      action: t.completed === true ? 'completed todo' : 'updated todo',
-                      title:      t.content || '',
-                      type:       'Todo',
-                    });
-                  }
-                }
-              }
-            }
-          }
-        }
-      } catch(e) { Logger.log('Todo error on ' + project.name + ': ' + e); }
+      stageB.push({ kind: 'todoset', project: project, url: todoTool.url });
     }
-  }
+  });
+
+  const todolistJobs = []; // { project, url } for each project's todolists collection
+  fetchAllChunked(stageB, headers, timeLeft, (job, resp) => {
+    if (resp.getResponseCode() !== 200) return;
+    if (job.kind === 'messages') {
+      const messages = JSON.parse(resp.getContentText());
+      for (const m of messages) {
+        if (new Date(m.updated_at) < since) break; // newest first
+        allEvents.push({
+          project:    job.project.name,
+          created_at: m.updated_at,
+          creator:    basecampCreator(m),
+          action:     'posted message',
+          title:      m.subject || '',
+          type:       'Message',
+        });
+      }
+    } else { // todoset
+      const todoset = JSON.parse(resp.getContentText());
+      if (todoset.todolists_url) {
+        todolistJobs.push({ project: job.project, url: todoset.todolists_url + '?per_page=10' });
+      }
+    }
+  });
+
+  // --- Stage C: the todolists inside each todoset (concurrent) ---
+  const todoFetchJobs = []; // one active + one completed request per todolist
+  fetchAllChunked(todolistJobs, headers, timeLeft, (job, resp) => {
+    if (resp.getResponseCode() !== 200) return;
+    const todolists = JSON.parse(resp.getContentText());
+    todolists.forEach(tl => {
+      const base = tl.url.replace('.json', '/todos.json');
+      todoFetchJobs.push({ kind: 'active',    project: job.project, url: base + '?per_page=20' });
+      todoFetchJobs.push({ kind: 'completed', project: job.project, url: base + '?completion_status=completed&per_page=20' });
+    });
+  });
+
+  // --- Stage D: active + completed todos for every todolist (concurrent) ---
+  fetchAllChunked(todoFetchJobs, headers, timeLeft, (job, resp) => {
+    if (resp.getResponseCode() !== 200) return;
+    const todos = JSON.parse(resp.getContentText());
+    for (const t of todos) {
+      if (new Date(t.updated_at) < since) continue;
+      allEvents.push({
+        project:    job.project.name,
+        created_at: t.updated_at,
+        creator:    basecampCreator(t),
+        action:     (job.kind === 'completed' && t.completed === true) ? 'completed todo' : 'updated todo',
+        title:      t.content || '',
+        type:       'Todo',
+      });
+    }
+  });
 
   allEvents.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
   Logger.log('Events in window: ' + allEvents.length);
   return allEvents;
+}
+
+// Small helper — safe creator name off a Basecamp object.
+// True if a project is on the private list in Config (CONFIG.EXCLUDED_PROJECTS).
+function isExcludedProject(project) {
+  const name = String(project.name || '').toLowerCase();
+  return (CONFIG.EXCLUDED_PROJECTS || []).some(x => name.indexOf(String(x).toLowerCase()) !== -1);
+}
+
+function basecampCreator(obj) {
+  return obj.creator && obj.creator.name ? obj.creator.name : 'Unknown';
+}
+
+// Runs a list of {url, ...} jobs through UrlFetchApp.fetchAll in
+// concurrent chunks. `handle(job, response)` is called for each result.
+//
+// Rate-limit safety (Basecamp allows 50 requests / 10 seconds per IP,
+// adjusted dynamically, returning HTTP 429 with a Retry-After header):
+//   - CHUNK/PAUSE_MS keep the sustained rate well under 50 per 10s.
+//   - If a 429 is returned anyway, we honour Retry-After and retry ONLY
+//     the throttled requests, so no data is silently dropped.
+//   - Everything is bounded by the caller's time budget.
+function fetchAllChunked(jobs, headers, timeLeft, handle) {
+  const CHUNK       = 12;   // requests sent concurrently per batch
+  const PAUSE_MS    = 2500; // pause between batches (sustained rate ~24-30 req / 10s)
+  const MAX_RETRIES = 4;    // per-batch 429 retry attempts
+
+  for (let i = 0; i < jobs.length; i += CHUNK) {
+    if (timeLeft() <= 0) {
+      Logger.log('Time budget reached — stopped after ' + i + ' of ' + jobs.length + ' requests.');
+      return;
+    }
+
+    let pending = jobs.slice(i, i + CHUNK);
+    let attempt = 0;
+
+    while (pending.length > 0) {
+      const requests = pending.map(j => ({ url: j.url, method: 'get', headers: headers, muteHttpExceptions: true }));
+
+      let responses;
+      try {
+        responses = UrlFetchApp.fetchAll(requests);
+      } catch (e) {
+        Logger.log('fetchAll error (skipping batch): ' + e);
+        break;
+      }
+
+      const throttled = [];
+      let retryAfterSec = 0;
+
+      for (let k = 0; k < responses.length; k++) {
+        const resp = responses[k];
+        const code = resp.getResponseCode();
+
+        if (code === 401 || code === 403) {
+          throw new Error('AUTH_EXPIRED: Basecamp token rejected (HTTP ' + code + ').');
+        }
+        if (code === 429) {
+          throttled.push(pending[k]);
+          const h  = resp.getHeaders();
+          const ra = parseInt(h['Retry-After'] || h['retry-after'] || '0', 10);
+          if (ra > retryAfterSec) retryAfterSec = ra;
+          continue;
+        }
+        try {
+          handle(pending[k], resp);
+        } catch (e) {
+          Logger.log('Parse error on ' + pending[k].url + ': ' + e);
+        }
+      }
+
+      if (throttled.length === 0) break; // whole batch handled
+
+      attempt++;
+      if (attempt > MAX_RETRIES || timeLeft() <= 0) {
+        Logger.log('Rate limit: gave up on ' + throttled.length + ' request(s) after ' + (attempt - 1) + ' retr(y/ies).');
+        break;
+      }
+
+      const waitMs = Math.max((retryAfterSec || 5) * 1000, 3000);
+      Logger.log('Rate limited (429) on ' + throttled.length + ' request(s) — waiting ' +
+                 Math.round(waitMs / 1000) + 's, then retrying just those.');
+      Utilities.sleep(waitMs);
+      pending = throttled; // retry only the throttled ones
+    }
+
+    if (i + CHUNK < jobs.length) Utilities.sleep(PAUSE_MS);
+  }
 }
 
 function getNextPageUrl(response) {

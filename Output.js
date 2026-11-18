@@ -2,10 +2,11 @@
 // OUTPUT — email, briefing history, compass log
 // ============================================================
 
-function sendBriefingEmail(briefingText, eventCount, hasCompassFlags) {
+function sendBriefingEmail(briefingText, eventCount, hasCompassFlags, recipientOverride) {
+  const to = recipientOverride || CONFIG.RECIPIENT;
   const props   = PropertiesService.getScriptProperties();
   const dateStr = Utilities.formatDate(new Date(), 'Europe/London', 'dd MMMM yyyy');
-  const subject = 'UNK Weekly Briefing — ' + dateStr;
+  const subject = (recipientOverride ? '[TEST] ' : '') + 'UNK Weekly Briefing — ' + dateStr;
 
   const compassDocId  = props.getProperty('COMPASS_DOC_ID');
   const correctionsId = props.getProperty('CORRECTIONS_DOC_ID');
@@ -57,8 +58,8 @@ function sendBriefingEmail(briefingText, eventCount, hasCompassFlags) {
 
     '</div></body></html>';
 
-  GmailApp.sendEmail(CONFIG.RECIPIENT, subject, briefingText, { htmlBody, name: 'UNK Briefing' });
-  Logger.log('Email sent to ' + CONFIG.RECIPIENT);
+  GmailApp.sendEmail(to, subject, briefingText, { htmlBody, name: 'UNK Briefing' });
+  Logger.log('Email sent to ' + to);
 }
 
 function appendToBriefingHistory(briefingText) {

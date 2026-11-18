@@ -4,12 +4,16 @@
 
 const CONFIG = {
   RECIPIENT:        'roger.elliott@unk.com,mark.tyrrell@unk.com,lyndsay.elliott@unk.com,paul.galbraith@unk.com',
+  TEST_RECIPIENT:   'roger.elliott@unk.com',   // test runs email only this address
   ACCOUNT_ID:       '5492807',
   HISTORY_WEEKS:    3,
   DAYS_BACK:        7,
   CLAUDE_MODEL:     'claude-sonnet-4-6',
   BASECAMP_UA:      'UNK Briefing Script (roger.elliott@unk.com)',
   KPI_TEAM_NAMES:   ['Paul', 'Ruairidh', 'Mark', 'Lyndsay', 'Roger'],
+  // Private Basecamp projects — never read, never reported.
+  // Matched by name, ignoring upper/lower case. Add more names here if needed.
+  EXCLUDED_PROJECTS: ['Elliott Family'],
 };
 
 // Doc IDs live in Script Properties:

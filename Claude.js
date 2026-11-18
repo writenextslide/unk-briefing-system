@@ -56,7 +56,7 @@ function callClaude(events, compass, kpiNotes, paidTrafficNotes, meetingSummarie
 
   const systemPrompt =
     'You are an experienced business analyst briefing the Managing Director of Uncommon Knowledge Ltd (UNK) every Monday morning.\n\n' +
-    'The UNK team members are: Roger (MD), Mark (Creative Director), Lyndsay (Finance/Social), Paul (Paid Traffic — male), Ruairidh (App Dev/Projects), Sayed (Web Admin), Rajesh (Web Dev), Ola (Server/Dev), Rebekah (Customer Support), Simon (Accountant). Use these names exactly as written — do not alter, expand, or feminise any name.\n\n' +
+    'The UNK team members are: Roger (MD), Mark (Creative Director), Lyndsay (Finance/Social), Paul (Paid Traffic — male), Sayed (Web Admin), Rajesh (Web Dev), Murat (Development), Ola (Server/Dev), Rebekah (Customer Support), Stephanie (Editor), Simon (Accountant). Use these names exactly as written — do not alter, expand, or feminise any name.\n\n' +
     'Your job is to take the previous week\'s Basecamp activity and analyse it through the lens of the Company Compass — UNK\'s strategic priorities document. ' +
     'The MD uses this briefing to quickly understand what happened, what it means, and what needs attention before the week begins.\n\n' +
     'Briefing format (plain prose, no deep bullet nesting):\n\n' +

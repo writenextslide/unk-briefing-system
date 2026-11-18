@@ -21,7 +21,6 @@ const BC_PEOPLE = {
   'roger':    { sgid: 'BAh7BkkiC19yYWlscwY6BkVUewdJIglkYXRhBjsAVEkiKWdpZDovL2JjMy9QZXJzb24vNDE3OTMwODg_ZXhwaXJlc19pbgY7AFRJIghwdXIGOwBUSSIPYXR0YWNoYWJsZQY7AFQ=--9c67cc905e918c265c9c6d04372e2f7805bf35d6', name: 'Roger Elliott' },
   'mark':     { sgid: 'BAh7BkkiC19yYWlscwY6BkVUewdJIglkYXRhBjsAVEkiKWdpZDovL2JjMy9QZXJzb24vNDIwNzE2NDI_ZXhwaXJlc19pbgY7AFRJIghwdXIGOwBUSSIPYXR0YWNoYWJsZQY7AFQ=--06bffa4b07bd12257fa5c744d93224186b220c12', name: 'Mark Tyrrell' },
   'lyndsay':  { sgid: 'BAh7BkkiC19yYWlscwY6BkVUewdJIglkYXRhBjsAVEkiKWdpZDovL2JjMy9QZXJzb24vNDIwNzIwNjQ_ZXhwaXJlc19pbgY7AFRJIghwdXIGOwBUSSIPYXR0YWNoYWJsZQY7AFQ=--0d3ed12d2326d4722839bc27dcc5435455aabd98', name: 'Lyndsay Elliott' },
-  'ruairidh': { sgid: 'BAh7BkkiC19yYWlscwY6BkVUewdJIglkYXRhBjsAVEkiKWdpZDovL2JjMy9QZXJzb24vNDE3OTIzODc_ZXhwaXJlc19pbgY7AFRJIghwdXIGOwBUSSIPYXR0YWNoYWJsZQY7AFQ=--034bf5ee144f1a966977b7ccb6aa312236dde84d', name: 'Ruairidh Galbraith' },
   'paul':     { sgid: 'BAh7BkkiC19yYWlscwY6BkVUewdJIglkYXRhBjsAVEkiKWdpZDovL2JjMy9QZXJzb24vNDE3OTI1MDU_ZXhwaXJlc19pbgY7AFRJIghwdXIGOwBUSSIPYXR0YWNoYWJsZQY7AFQ=--ca3d08944c0ec72723baf47164d3dffd034089de', name: 'Paul Galbraith' },
 };
 

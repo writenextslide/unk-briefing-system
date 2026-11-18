@@ -78,7 +78,7 @@ function testRun() {
     const events           = getBasecampActivity();
     const { briefing, compassFlags } = callClaude(events, compass, kpiNotes, paidTrafficNotes, meetingSummaries, corrections, history);
 
-    sendBriefingEmail(briefing, events.length, !!compassFlags);
+    sendBriefingEmail(briefing, events.length, !!compassFlags, CONFIG.TEST_RECIPIENT);
 
     if (compassFlags) {
       Logger.log('--- Compass flags (not written in test mode) ---');
