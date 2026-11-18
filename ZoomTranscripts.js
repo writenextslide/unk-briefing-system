@@ -22,6 +22,8 @@ const BC_PEOPLE = {
   'mark':     { sgid: 'BAh7BkkiC19yYWlscwY6BkVUewdJIglkYXRhBjsAVEkiKWdpZDovL2JjMy9QZXJzb24vNDIwNzE2NDI_ZXhwaXJlc19pbgY7AFRJIghwdXIGOwBUSSIPYXR0YWNoYWJsZQY7AFQ=--06bffa4b07bd12257fa5c744d93224186b220c12', name: 'Mark Tyrrell' },
   'lyndsay':  { sgid: 'BAh7BkkiC19yYWlscwY6BkVUewdJIglkYXRhBjsAVEkiKWdpZDovL2JjMy9QZXJzb24vNDIwNzIwNjQ_ZXhwaXJlc19pbgY7AFRJIghwdXIGOwBUSSIPYXR0YWNoYWJsZQY7AFQ=--0d3ed12d2326d4722839bc27dcc5435455aabd98', name: 'Lyndsay Elliott' },
   'paul':     { sgid: 'BAh7BkkiC19yYWlscwY6BkVUewdJIglkYXRhBjsAVEkiKWdpZDovL2JjMy9QZXJzb24vNDE3OTI1MDU_ZXhwaXJlc19pbgY7AFRJIghwdXIGOwBUSSIPYXR0YWNoYWJsZQY7AFQ=--ca3d08944c0ec72723baf47164d3dffd034089de', name: 'Paul Galbraith' },
+  'stephanie': { sgid: 'BAh7BkkiC19yYWlscwY6BkVUewdJIglkYXRhBjsAVEkiKWdpZDovL2JjMy9QZXJzb24vNDQxOTQ1OTk_ZXhwaXJlc19pbgY7AFRJIghwdXIGOwBUSSIPYXR0YWNoYWJsZQY7AFQ=--253bf7a6ec149ca7a9b27e3536cddf6a590aebe6', name: 'Stephanie Ayres' },
+  'murat':    { sgid: 'BAh7BkkiC19yYWlscwY6BkVUewdJIglkYXRhBjsAVEkiKWdpZDovL2JjMy9QZXJzb24vNTI2MjIxOTk_ZXhwaXJlc19pbgY7AFRJIghwdXIGOwBUSSIPYXR0YWNoYWJsZQY7AFQ=--0a2f2e4e7e1c0715425923e3514f367946bacf8f', name: 'Murat' },
 };
 
 
